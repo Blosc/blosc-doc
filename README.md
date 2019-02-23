@@ -1,5 +1,7 @@
 # Welcome to Blosc Documentation
 
+https://blosc-doc.readthedocs.io/en/latest/
+
 The objective of this repository is to gather together all the Blosc documentation. From simple API reference like C-Blosc, JBlosc, PyBlosc projects to more elaborated In-Depth documentation, here you will find all the technical information related to Blosc projects.
 
 ## Updating this repository
