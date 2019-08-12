@@ -103,11 +103,11 @@ Main API
    :project: blosc2
 .. doxygenfunction:: blosc_destroy
    :project: blosc2
+
+blosc_compress()
+________________
 .. doxygenfunction:: blosc_compress
    :project: blosc2
-
-Environment variables
-_____________________
 
 *blosc_compress()* honors different environment variables to control
 internal parameters without the need of doing that programatically.
@@ -146,11 +146,11 @@ the hood, with the *compressor*, *blocksize* and
 *blosc_set_nthreads*. *BLOSC_CLEVEL*, *BLOSC_SHUFFLE*, *BLOSC_DELTA* and
 *BLOSC_TYPESIZE* environment vars will also be honored.
 
+blosc_decompress()
+__________________
+
 .. doxygenfunction:: blosc_decompress
    :project: blosc2
-
-Environment variables
-_____________________
 
 *blosc_decompress* honors different environment variables to control
 internal parameters without the need of doing that programatically.
@@ -205,9 +205,10 @@ Utility functions
 
 Context API
 +++++++++++
-In Blosc 2 there is a special struct blosc2_context that is created from
-compression and decompression parameters. This blosc2_context allows the
-compression in multithreaded scenarios without using the global lock.
+In Blosc 2 there is a special `blosc2_context` struct that is created from
+compression and decompression parameters. This allows the compression and
+decompression to happen in multithreaded scenarios, without the need for
+using the global lock.
 
 .. doxygenstruct:: blosc2_cparams
    :project: blosc2
@@ -235,8 +236,8 @@ compression in multithreaded scenarios without using the global lock.
 Super-chunk API
 +++++++++++++++
 This API describes the new Blosc 2 container, the super-chunk (or `schunk` for
-short), that is typically stored sparsely in-memory (see the `frames` below for
-other storage methods).
+short), that is typically stored sparsely in-memory (see the `frames` section
+below for other storage methods, including on-disk ones).
 
 **typedef blosc2_schunk**
 
