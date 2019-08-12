@@ -7,4 +7,4 @@ The objective of this repository is to gather together all the Blosc documentati
 ## Updating this repository
 
 To make an update of this repository the files under **src** folder must be updated from their corresponding sources, to do so please refer to the following list:
-* [c-blosc2_files](https://github.com/Blosc/c-blosc2): [README.rst](https://github.com/Blosc/c-blosc2/blob/master/README.rst) and [blosc/blosc.h](https://github.com/Blosc/c-blosc2/blob/master/blosc/blosc.h)
+* [c-blosc2_files](https://github.com/Blosc/c-blosc2): [README.rst](https://github.com/Blosc/c-blosc2/blob/master/README.rst) and [blosc/blosc2.h](https://github.com/Blosc/c-blosc2/blob/master/blosc/blosc2.h)
