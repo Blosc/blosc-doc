@@ -20,29 +20,37 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include "blosc-export.h"
+#include "blosc2-export.h"
+#include "blosc2-common.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 
 /* Version numbers */
 #define BLOSC_VERSION_MAJOR    2    /* for major interface/format changes  */
 #define BLOSC_VERSION_MINOR    0    /* for minor interface/format changes  */
 #define BLOSC_VERSION_RELEASE  0    /* for tweaks, bug-fixes, or development */
 
-#define BLOSC_VERSION_STRING   "2.0.0a6.dev"  /* string version.  Sync with above! */
+#define BLOSC_VERSION_STRING   "2.0.0-beta.1"  /* string version.  Sync with above! */
 #define BLOSC_VERSION_REVISION "$Rev$"   /* revision version */
-#define BLOSC_VERSION_DATE     "$Date:: 2018-05-18 #$"    /* date version */
+#define BLOSC_VERSION_DATE     "$Date:: 2019-08-09 #$"    /* date version */
 
 
-/* The *_FORMAT symbols below should be just 1-byte long */
+/* The VERSION_FORMAT symbols below should be just 1-byte long */
 enum {
   /* Blosc format version, starting at 1
-     1 -> Basically for Blosc pre-1.0
+     1 -> Blosc pre-1.0
      2 -> Blosc 1.x series
-     3 -> Blosc 2.x series */
-  BLOSC_VERSION_FORMAT = 3,
+     3 -> Blosc 2-alpha.x series
+     4 -> Blosc 2.x series
+     */
+  BLOSC_PRE1_VERSION_FORMAT = 1,
+  BLOSC1_VERSION_FORMAT = 2,
+  BLOSC2_ALPHA_VERSION_FORMAT = 3,
+  BLOSC2_BETA_VERSION_FORMAT = 4,
+  BLOSC_VERSION_FORMAT_LATEST = BLOSC2_BETA_VERSION_FORMAT,
 };
 
 enum {
@@ -82,7 +90,7 @@ enum {
 };
 
 enum {
-  BLOSC_MAX_FILTERS = 5,
+  BLOSC2_MAX_FILTERS = 6,
   //!< Maximum number of filters in the filter pipeline
 };
 
@@ -556,6 +564,33 @@ BLOSC_EXPORT char* blosc_cbuffer_complib(const void* cbuffer);
 
 typedef struct blosc2_context_s blosc2_context;   /* opaque type */
 
+#define BLOSC2_PREFILTER_INPUTS_MAX (128)
+
+/**
+ * @brief The parameters for a prefilter function.
+ *
+ * There can be many inputs and a single output.
+ * The number of elements of each input and the output should be the same.
+ * Strictly, the user only needs to fill the `ninputs` , `inputs` and `input_typesizes`.
+ * The other fields will be filled by the library itself.
+ */
+typedef struct {
+  int ninputs;  // number of data inputs
+  uint8_t* inputs[BLOSC2_PREFILTER_INPUTS_MAX];  // the data inputs
+  int32_t input_typesizes[BLOSC2_PREFILTER_INPUTS_MAX];  // the typesizes for data inputs
+  void *user_data;  // user-provided info (optional)
+  uint8_t *out;  // automatically filled
+  int32_t out_size;  // automatically filled
+  int32_t out_typesize;  // automatically filled
+} blosc2_prefilter_params;
+
+/**
+ * @brief The type of the prefilter function.
+ *
+ * If the function call is successful, the return value should be 0; else, a negative value.
+ */
+typedef int (*blosc2_prefilter_fn)(blosc2_prefilter_params* params);
+
 /**
  * @brief The parameters for creating a context for compression purposes.
  *
@@ -577,10 +612,14 @@ typedef struct {
   //!< The requested size of the compressed blocks (0; meaning automatic).
   void* schunk;
   //!< The associated schunk, if any (NULL).
-  uint8_t filters[BLOSC_MAX_FILTERS];
+  uint8_t filters[BLOSC2_MAX_FILTERS];
   //!< The (sequence of) filters.
-  uint8_t filters_meta[BLOSC_MAX_FILTERS];
+  uint8_t filters_meta[BLOSC2_MAX_FILTERS];
   //!< The metadata for filters.
+  blosc2_prefilter_fn prefilter;
+  //!< The prefilter function.
+  blosc2_prefilter_params *pparams;
+  //!< The prefilter parameters.
 } blosc2_cparams;
 
 /**
@@ -588,7 +627,8 @@ typedef struct {
  */
 static const blosc2_cparams BLOSC_CPARAMS_DEFAULTS = {
         BLOSC_BLOSCLZ, 5, 0, 8, 1, 0, NULL,
-        {0, 0, 0, 0, BLOSC_SHUFFLE}, {0, 0, 0, 0, 0} };
+        {0, 0, 0, 0, 0, BLOSC_SHUFFLE}, {0, 0, 0, 0, 0, 0},
+        NULL, NULL };
 
 /**
   @brief The parameters for creating a context for decompression purposes.
@@ -597,7 +637,7 @@ static const blosc2_cparams BLOSC_CPARAMS_DEFAULTS = {
   (zero) in the fields of the struct is passed to a function.
  */
 typedef struct {
-  int16_t nthreads;
+  int nthreads;
   //!< The number of threads to use internally (1).
   void* schunk;
   //!< The associated schunk, if any (NULL).
@@ -648,9 +688,11 @@ BLOSC_EXPORT void blosc2_free_ctx(blosc2_context* context);
  * @param dest The buffer where the compressed data will be put.
  * @param destsize The size in bytes of the @p dest buffer.
  *
- * @return The number of bytes compressed. A negative return value means
- * that an internal error happened. It could happen that context is
- * not meant for compression (which is stated in stderr).
+ * @return The number of bytes compressed.
+ * If @p src buffer cannot be compressed into @p destsize, the return
+ * value is zero and you should discard the contents of the @p dest
+ * buffer.  A negative return value means that an internal error happened.
+ * It could happen that context is not meant for compression (which is stated in stderr).
  * Otherwise, please report it back together with the buffer data causing this
  * and compression settings.
  */
@@ -721,22 +763,9 @@ typedef struct {
   uint8_t* sdata;  //!< The in-memory serialized data
   int64_t len;     //!< The current length of the frame in (compressed) bytes
   int64_t maxlen;  //!< The maximum length of the frame; if 0, there is no maximum
-  struct blosc2_schunk *schunk;    //!< The pointer to super-chunk (if it exists).
   struct blosc2_frame_metalayer *metalayers[BLOSC2_MAX_METALAYERS]; //!< The array of metalayers.
   int16_t nmetalayers;  //!< The number of metalayers in the frame
 } blosc2_frame;
-
-/**
- * @brief Empty in-memory frame
- */
-static blosc2_frame BLOSC_EMPTY_FRAME = {
-  .sdata = NULL,
-  .fname = NULL,
-  .len = 0,
-  .maxlen = 0,
-  .schunk = NULL,
-  .nmetalayers = 0,
-};
 
 /**
  * @brief This struct is the standard container for Blosc 2 compressed data.
@@ -761,9 +790,9 @@ typedef struct blosc2_schunk {
   //!< The requested size of the compressed blocks (0; meaning automatic).
   int32_t chunksize;
   //!< Size of each chunk. 0 if not a fixed chunksize.
-  uint8_t filters[BLOSC_MAX_FILTERS];
+  uint8_t filters[BLOSC2_MAX_FILTERS];
   //!< The (sequence of) filters.  8-bit per filter.
-  uint8_t filters_meta[BLOSC_MAX_FILTERS];
+  uint8_t filters_meta[BLOSC2_MAX_FILTERS];
   //!< Metadata for filters. 8-bit per meta-slot.
   int32_t nchunks;
   //!< Number of chunks in super-chunk.
@@ -809,6 +838,19 @@ blosc2_new_schunk(blosc2_cparams cparams, blosc2_dparams dparams, blosc2_frame *
  * @return 0 if succeeds.
  */
 BLOSC_EXPORT int blosc2_free_schunk(blosc2_schunk *schunk);
+
+/**
+ * @brief Append an existing @p chunk o a super-chunk.
+ *
+ * @param schunk The super-chunk where the chunk will be appended.
+ * @param chunk The @p chunk to append.  An internal copy is made, so @p chunk can be reused or
+ * freed if desired.
+ * @param copy Whether the chunk should be copied internally or can be used as-is.
+ *
+ * @return The number of chunks in super-chunk. If some problem is
+ * detected, this number will be negative.
+ */
+BLOSC_EXPORT int blosc2_schunk_append_chunk(blosc2_schunk *schunk, uint8_t *chunk, bool copy);
 
 /**
  * @brief Append a @p src data buffer to a super-chunk.
@@ -872,7 +914,7 @@ BLOSC_EXPORT int blosc2_schunk_get_chunk(blosc2_schunk *schunk, int nchunk, uint
  *
  * @return 0 if succeeds. Else a negative code is returned.
  */
-BLOSC_EXPORT int blosc2_get_cparams(blosc2_schunk *schunk, blosc2_cparams **cparams);
+BLOSC_EXPORT int blosc2_schunk_get_cparams(blosc2_schunk *schunk, blosc2_cparams **cparams);
 
 /**
  * @brief Return the @p dparams struct associated to a super-chunk.
@@ -884,7 +926,7 @@ BLOSC_EXPORT int blosc2_get_cparams(blosc2_schunk *schunk, blosc2_cparams **cpar
  *
  * @return 0 if succeeds. Else a negative code is returned.
  */
-BLOSC_EXPORT int blosc2_get_dparams(blosc2_schunk *schunk, blosc2_dparams **dparams);
+BLOSC_EXPORT int blosc2_schunk_get_dparams(blosc2_schunk *schunk, blosc2_dparams **dparams);
 
 
 /*********************************************************************
@@ -892,6 +934,15 @@ BLOSC_EXPORT int blosc2_get_dparams(blosc2_schunk *schunk, blosc2_dparams **dpar
   Frame related structures and functions.
 
 *********************************************************************/
+
+/**
+ * @brief Create a new frame.
+ *
+ * @param fname The filename of the frame.  If not persistent, pass NULL.
+ *
+ * @return The new frame.
+ */
+BLOSC_EXPORT blosc2_frame* blosc2_new_frame(char* fname);
 
 /**
  * @brief Create a frame from a super-chunk.
@@ -946,51 +997,6 @@ BLOSC_EXPORT blosc2_frame* blosc2_frame_from_file(const char *fname);
  * @return The super-chunk corresponding to the frame.
  */
 BLOSC_EXPORT blosc2_schunk* blosc2_schunk_from_frame(blosc2_frame* frame, bool sparse);
-
-/**
- * @brief Append an existing chunk into a frame.
- *
- * @param frame The frame to which data will be appended.
- * @param chunk The chunk of compressed data to append.
- *
- * @return The frame pointer. If an error occurs NULL will be returned.
- */
-BLOSC_EXPORT void* blosc2_frame_append_chunk(blosc2_frame* frame, void* chunk);
-
-/**
- * @brief Return a compressed chunk that is part of a frame in the @p chunk parameter.
- *
- * If the frame is disk-based, a buffer is allocated for the (compressed) chunk,
- * and hence a free is needed. You can check if the chunk requires a free with the @p needs_free
- * parameter.
- * If the chunk does not need a free, it means that a pointer to the location in frame is returned
- * in the @p chunk parameter.
- *
- * @param frame The frame from which the chunk will be retrieved.
- * @param nchunk The chunk to be extracted (0 indexed).
- * @param chunk The pointer where the chunk pointer will be put.
- * @param needs_free The pointer to a boolean indicating whether the user is in charge
- * of freeing the chunk or not.
- *
- * @return The size of the (compressed) chunk. If some problem is detected, a negative code
- * is returned instead.
-*/
-BLOSC_EXPORT int blosc2_frame_get_chunk(blosc2_frame *frame, int nchunk, uint8_t **chunk,
-                                        bool *needs_free);
-
-/**
- * @brief Decompress and return a chunk that is part of a frame.
- *
- * @param frame The frame from which the chunk will be decompressed.
- * @param nchunk The chunk to be decompressed (0 indexed).
- * @param dest The buffer where decompressed data will be put.
- * @param nbytes The size of the @p dest buffer.
- *
- * @return The size of the decompressed chunk. If some problem is
- * detected, a negative code is returned instead.
- */
-BLOSC_EXPORT int blosc2_frame_decompress_chunk(blosc2_frame *frame, int nchunk,
-                                               void *dest, size_t nbytes);
 
 /**
  * @brief Find whether the frame has a metalayer or not.
@@ -1050,7 +1056,46 @@ BLOSC_EXPORT int blosc2_frame_get_metalayer(blosc2_frame *frame, char *name, uin
 
 *********************************************************************/
 
-#include "timestamp.h"
+#if defined(_WIN32)
+/* For QueryPerformanceCounter(), etc. */
+  #include <windows.h>
+#elif defined(__MACH__)
+#include <mach/clock.h>
+#include <mach/mach.h>
+#include <time.h>
+#elif defined(__unix__)
+#if defined(__linux__)
+    #include <time.h>
+  #else
+    #include <sys/time.h>
+  #endif
+#else
+  #error Unable to detect platform.
+#endif
+
+/* The type of timestamp used on this system. */
+#if defined(_WIN32)
+#define blosc_timestamp_t LARGE_INTEGER
+#else
+#define blosc_timestamp_t struct timespec
+#endif
+
+/*
+ * Set a timestamp.
+ */
+BLOSC_EXPORT void blosc_set_timestamp(blosc_timestamp_t* timestamp);
+
+/*
+ * Return the nanoseconds between 2 timestamps.
+ */
+BLOSC_EXPORT double blosc_elapsed_nsecs(blosc_timestamp_t start_time,
+                                        blosc_timestamp_t end_time);
+
+/*
+ * Return the seconds between 2 timestamps.
+ */
+BLOSC_EXPORT double blosc_elapsed_secs(blosc_timestamp_t start_time,
+                                       blosc_timestamp_t end_time);
 
 
 /*********************************************************************
@@ -1081,62 +1126,6 @@ BLOSC_EXPORT void blosc_set_blocksize(size_t blocksize);
  * available (the default).
  */
 BLOSC_EXPORT void blosc_set_schunk(blosc2_schunk* schunk);
-
-
-/*********************************************************************
-
-  Utility functions meant to be used internally.  // TODO put them in their own header
-
-*********************************************************************/
-
-/* Copy 4 bytes from @p *pa to int32_t, changing endianness if necessary. */
-static int32_t sw32_(const void* pa) {
-  int32_t idest;
-  uint8_t* dest = (uint8_t*)&idest;
-  uint8_t* pa_ = (uint8_t*)pa;
-  int i = 1;                    /* for big/little endian detection */
-  char* p = (char*)&i;
-
-  if (p[0] != 1) {
-    /* big endian */
-    dest[0] = pa_[3];
-    dest[1] = pa_[2];
-    dest[2] = pa_[1];
-    dest[3] = pa_[0];
-  }
-  else {
-    /* little endian */
-    dest[0] = pa_[0];
-    dest[1] = pa_[1];
-    dest[2] = pa_[2];
-    dest[3] = pa_[3];
-  }
-  return idest;
-}
-
-
-/* Copy 4 bytes from @p *pa to @p *dest, changing endianness if necessary. */
-static void _sw32(void* dest, int32_t a) {
-  uint8_t* dest_ = (uint8_t*)dest;
-  uint8_t* pa = (uint8_t*)&a;
-  int i = 1;                    /* for big/little endian detection */
-  char* p = (char*)&i;
-
-  if (p[0] != 1) {
-    /* big endian */
-    dest_[0] = pa[3];
-    dest_[1] = pa[2];
-    dest_[2] = pa[1];
-    dest_[3] = pa[0];
-  }
-  else {
-    /* little endian */
-    dest_[0] = pa[0];
-    dest_[1] = pa[1];
-    dest_[2] = pa[2];
-    dest_[3] = pa[3];
-  }
-}
 
 
 #ifdef __cplusplus

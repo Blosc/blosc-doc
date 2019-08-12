@@ -51,8 +51,8 @@ extensions = [
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
-breathe_projects = {'blosc': './doxygen/xml'}
-breathe_default_project = 'blosc'
+breathe_projects = {'blosc2': './doxygen/xml'}
+breathe_default_project = 'blosc2'
 breathe_show_define_initializer = True
 breathe_order_parameters_first = True
 
