@@ -54,7 +54,7 @@ templates_path = ['_templates']
 breathe_projects = {'blosc': './doxygen/xml'}
 breathe_default_project = 'blosc'
 breathe_show_define_initializer = True
-# breathe_order_parameters_first = True
+breathe_order_parameters_first = True
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
