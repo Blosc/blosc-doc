@@ -232,10 +232,11 @@ compression in multithreaded scenarios without using the global lock.
 .. doxygenfunction:: blosc2_getitem_ctx
    :project: blosc2
 
-Super Chunk API
+Super-chunk API
 +++++++++++++++
-This API describes the new Blosc 2 container, the Super Chunk, which breaks
-the 32 bit limitation of Blosc 1.
+This API describes the new Blosc 2 container, the super-chunk (or `schunk` for
+short), that is typically stored sparsely in-memory (see the `frames` below for
+other storage methods).
 
 **typedef blosc2_schunk**
 
@@ -252,15 +253,15 @@ the 32 bit limitation of Blosc 1.
    :project: blosc2
 .. doxygenfunction:: blosc2_schunk_get_chunk
    :project: blosc2
-.. doxygenfunction:: blosc2_get_cparams
+.. doxygenfunction:: blosc2_schunk_get_cparams
    :project: blosc2
-.. doxygenfunction:: blosc2_get_dparams
+.. doxygenfunction:: blosc2_schunk_get_dparams
    :project: blosc2
 
 Frame API
 +++++++++
-The Blosc 2 Frame struct is essentially a Super Chunk contiguous in memory,
-providing the possibility of serialization on disk and adding metadata.
+The Blosc 2 Frame struct is essentially a store for a super-chunk that
+can be contiguous in memory, or serialized to disk.
 
 **typedef blosc2_frame_metalayer**
 
@@ -270,8 +271,6 @@ providing the possibility of serialization on disk and adding metadata.
 .. doxygenstruct:: blosc2_frame
    :project: blosc2
    :members:
-.. doxygenvariable:: BLOSC_EMPTY_FRAME
-   :project: blosc2
 .. doxygenfunction:: blosc2_schunk_to_frame
    :project: blosc2
 .. doxygenfunction:: blosc2_schunk_from_frame
@@ -285,6 +284,9 @@ providing the possibility of serialization on disk and adding metadata.
 
 Metalayer functions
 -------------------
+Metalayers are meta-information that can be attached to frames.  They can
+also be serialized to disk.
+
 .. doxygenfunction:: blosc2_frame_has_metalayer
    :project: blosc2
 .. doxygenfunction:: blosc2_frame_add_metalayer
