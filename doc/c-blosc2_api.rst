@@ -7,105 +7,104 @@ Utility variables
 +++++++++++++++++
 This are enum values which avoid the nuisance of remembering codes and IDs.
 
-Limit related values
---------------------
+Limits for different features
+-----------------------------
 .. doxygenenumvalue:: BLOSC_MIN_HEADER_LENGTH
-   :project: blosc
+   :project: blosc2
 .. doxygenenumvalue:: BLOSC_EXTENDED_HEADER_LENGTH
-   :project: blosc
+   :project: blosc2
 .. doxygenenumvalue:: BLOSC_MAX_OVERHEAD
-   :project: blosc
+   :project: blosc2
 .. doxygenenumvalue:: BLOSC_MIN_BUFFERSIZE
-   :project: blosc
+   :project: blosc2
 .. doxygenenumvalue:: BLOSC_MAX_BUFFERSIZE
-   :project: blosc
+   :project: blosc2
 .. doxygenenumvalue:: BLOSC_MAX_TYPESIZE
-   :project: blosc
-.. doxygenenumvalue:: BLOSC_MAX_FILTERS
-   :project: blosc
+   :project: blosc2
+.. doxygenenumvalue:: BLOSC2_MAX_FILTERS
+   :project: blosc2
 
 Codes for filters
 -----------------
 .. doxygenenumvalue:: BLOSC_NOSHUFFLE
-   :project: blosc
+   :project: blosc2
 .. doxygenenumvalue:: BLOSC_NOFILTER
-   :project: blosc
+   :project: blosc2
 .. doxygenenumvalue:: BLOSC_SHUFFLE
-   :project: blosc
+   :project: blosc2
 .. doxygenenumvalue:: BLOSC_BITSHUFFLE
-   :project: blosc
+   :project: blosc2
 .. doxygenenumvalue:: BLOSC_DELTA
-   :project: blosc
+   :project: blosc2
 .. doxygenenumvalue:: BLOSC_TRUNC_PREC
-   :project: blosc
+   :project: blosc2
 .. doxygenenumvalue:: BLOSC_LAST_FILTER
-   :project: blosc
+   :project: blosc2
 
 Internal flags (blosc_cbuffer_metainfo)
 ---------------------------------------
 .. doxygenenumvalue:: BLOSC_DOSHUFFLE
-   :project: blosc
+   :project: blosc2
 .. doxygenenumvalue:: BLOSC_MEMCPYED
-   :project: blosc
+   :project: blosc2
 .. doxygenenumvalue:: BLOSC_DOBITSHUFFLE
-   :project: blosc
+   :project: blosc2
 .. doxygenenumvalue:: BLOSC_DODELTA
-   :project: blosc
+   :project: blosc2
 
 Compression dictionaries
 ------------------------
 .. doxygenenumvalue:: BLOSC2_USEDICT
-   :project: blosc
+   :project: blosc2
 .. doxygenenumvalue:: BLOSC2_MAXDICTSIZE
-   :project: blosc
+   :project: blosc2
 
-Compressor codes
-----------------
+Compressor codecs
+-----------------
 .. doxygenenumvalue:: BLOSC_BLOSCLZ
-   :project: blosc
+   :project: blosc2
 .. doxygenenumvalue:: BLOSC_LZ4
-   :project: blosc
+   :project: blosc2
 .. doxygenenumvalue:: BLOSC_LZ4HC
-   :project: blosc
+   :project: blosc2
 .. doxygenenumvalue:: BLOSC_SNAPPY
-   :project: blosc
+   :project: blosc2
 .. doxygenenumvalue:: BLOSC_ZLIB
-   :project: blosc
+   :project: blosc2
 .. doxygenenumvalue:: BLOSC_ZSTD
-   :project: blosc
+   :project: blosc2
 .. doxygenenumvalue:: BLOSC_LIZARD
-   :project: blosc
+   :project: blosc2
 
 Compressor names
 ----------------
 .. doxygendefine:: BLOSC_BLOSCLZ_COMPNAME
-   :project: blosc
+   :project: blosc2
 .. doxygendefine:: BLOSC_LZ4_COMPNAME
-   :project: blosc
+   :project: blosc2
 .. doxygendefine:: BLOSC_LZ4HC_COMPNAME
-   :project: blosc
+   :project: blosc2
 .. doxygendefine:: BLOSC_SNAPPY_COMPNAME
-   :project: blosc
+   :project: blosc2
 .. doxygendefine:: BLOSC_ZLIB_COMPNAME
-   :project: blosc
+   :project: blosc2
 .. doxygendefine:: BLOSC_ZSTD_COMPNAME
-   :project: blosc
+   :project: blosc2
 .. doxygendefine:: BLOSC_LIZARD_COMPNAME
-   :project: blosc
+   :project: blosc2
 
-Classic API
-+++++++++++
-This is the classic API from Blosc 1 with 32-bit limited containers
-and single threaded.
+Blosc1 API
+++++++++++
+This is the classic API from Blosc1 with 32-bit limited containers.
 
 Main API
 --------
 .. doxygenfunction:: blosc_init
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc_destroy
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc_compress
-   :project: blosc
+   :project: blosc2
 
 Environment variables
 _____________________
@@ -148,7 +147,7 @@ the hood, with the *compressor*, *blocksize* and
 *BLOSC_TYPESIZE* environment vars will also be honored.
 
 .. doxygenfunction:: blosc_decompress
-   :project: blosc
+   :project: blosc2
 
 Environment variables
 _____________________
@@ -166,43 +165,43 @@ under the hood, with the *numinternalthreads* parameter set to the
 same value as the last call to *blosc_set_nthreads*.
 
 .. doxygenfunction:: blosc_getitem
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc_get_nthreads
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc_set_nthreads
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc_get_compressor
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc_set_compressor
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc_set_delta
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc_free_resources
-   :project: blosc
+   :project: blosc2
 
 Compressed buffer information
 -----------------------------
 .. doxygenfunction:: blosc_cbuffer_sizes
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc_cbuffer_metainfo
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc_cbuffer_versions
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc_cbuffer_complib
-   :project: blosc
+   :project: blosc2
 
 Utility functions
 -----------------
 .. doxygenfunction:: blosc_compcode_to_compname
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc_compname_to_compcode
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc_list_compressors
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc_get_version_string
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc_get_complib_info
-   :project: blosc
+   :project: blosc2
 
 Context API
 +++++++++++
@@ -211,27 +210,27 @@ compression and decompression parameters. This blosc2_context allows the
 compression in multithreaded scenarios without using the global lock.
 
 .. doxygenstruct:: blosc2_cparams
-   :project: blosc
+   :project: blosc2
    :members:
 .. doxygenvariable:: BLOSC_CPARAMS_DEFAULTS
-   :project: blosc
+   :project: blosc2
 .. doxygenstruct:: blosc2_dparams
-   :project: blosc
+   :project: blosc2
    :members:
 .. doxygenvariable:: BLOSC_DPARAMS_DEFAULTS
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc2_create_cctx
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc2_create_dctx
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc2_free_ctx
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc2_compress_ctx
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc2_decompress_ctx
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc2_getitem_ctx
-   :project: blosc
+   :project: blosc2
 
 Super Chunk API
 +++++++++++++++
@@ -241,22 +240,22 @@ the 32 bit limitation of Blosc 1.
 **typedef blosc2_schunk**
 
 .. doxygenstruct:: blosc2_schunk
-   :project: blosc
+   :project: blosc2
    :members:
 .. doxygenfunction:: blosc2_new_schunk
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc2_free_schunk
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc2_schunk_append_buffer
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc2_schunk_decompress_chunk
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc2_schunk_get_chunk
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc2_get_cparams
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc2_get_dparams
-   :project: blosc
+   :project: blosc2
 
 Frame API
 +++++++++
@@ -266,48 +265,53 @@ providing the possibility of serialization on disk and adding metadata.
 **typedef blosc2_frame_metalayer**
 
 .. doxygenstruct:: blosc2_frame_metalayer
-   :project: blosc
+   :project: blosc2
    :members:
 .. doxygenstruct:: blosc2_frame
-   :project: blosc
+   :project: blosc2
    :members:
 .. doxygenvariable:: BLOSC_EMPTY_FRAME
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc2_schunk_to_frame
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc2_schunk_from_frame
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc2_free_frame
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc2_frame_to_file
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc2_frame_from_file
-   :project: blosc
-.. doxygenfunction:: blosc2_frame_append_chunk
-   :project: blosc
-.. doxygenfunction:: blosc2_frame_get_chunk
-   :project: blosc
-.. doxygenfunction:: blosc2_frame_decompress_chunk
-   :project: blosc
+   :project: blosc2
 
-Namespaces functions
---------------------
+Metalayer functions
+-------------------
 .. doxygenfunction:: blosc2_frame_has_metalayer
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc2_frame_add_metalayer
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc2_frame_update_metalayer
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc2_frame_get_metalayer
-   :project: blosc
+   :project: blosc2
+
+Timing functions
+++++++++++++++++
+Time measurement utilities.
+
+.. doxygenfunction:: blosc_set_timestamp
+   :project: blosc2
+.. doxygenfunction:: blosc_elapsed_nsecs
+   :project: blosc2
+.. doxygenfunction:: blosc_elapsed_secs
+   :project: blosc2
 
 Low level functions
 +++++++++++++++++++
 Use them only if you are an expert!
 
 .. doxygenfunction:: blosc_get_blocksize
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc_set_blocksize
-   :project: blosc
+   :project: blosc2
 .. doxygenfunction:: blosc_set_schunk
-   :project: blosc
+   :project: blosc2
