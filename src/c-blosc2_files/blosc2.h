@@ -129,6 +129,7 @@ enum {
   BLOSC_ZLIB = 4,
   BLOSC_ZSTD = 5,
   BLOSC_LIZARD = 6,
+  BLOSC_MAX_CODECS = 7,  //!< maximum number of reserved codecs
 };
 
 
@@ -310,6 +311,11 @@ BLOSC_EXPORT int blosc_compress(int clevel, int doshuffle, size_t typesize,
  *
  * @remark Decompression is memory safe and guaranteed not to write the @p dest
  * buffer more than what is specified in @p destsize.
+ *
+ * @remark In case you want to keep under control the number of bytes read from
+ * source, you can call #blosc_cbuffer_sizes first to check whether the
+ * @p nbytes (i.e. the number of bytes to be read from @p src buffer by this
+ * function) in the compressed buffer is ok with you.
  *
  * @param src The buffer to be decompressed.
  * @param dest The buffer where the decompressed data will be put.
@@ -496,7 +502,7 @@ BLOSC_EXPORT int blosc_free_resources(void);
  * @param cbytes The pointer where the number of compressed bytes will be put.
  * @param blocksize The pointer where the block size will be put.
  *
- * You only need to pass the first BLOSC_MIN_HEADER_LENGTH bytes of a
+ * You only need to pass the first BLOSC_EXTENDED_HEADER_LENGTH bytes of a
  * compressed buffer for this call to work.
  *
  * This function should always succeed.
@@ -712,8 +718,15 @@ BLOSC_EXPORT int blosc2_compress_ctx(
  * @param dest The buffer where the decompressed data will be put.
  * @param destsize The size in bytes of the @p dest buffer.
  *
- * Decompression is memory safe and guaranteed not to write the @p dest
+ * @warning The @p src buffer and the @p dest buffer can not overlap.
+ *
+ * @remark Decompression is memory safe and guaranteed not to write the @p dest
  * buffer more than what is specified in @p destsize.
+ *
+ * @remark In case you want to keep under control the number of bytes read from
+ * source, you can call #blosc_cbuffer_sizes first to check whether the
+ * @p nbytes (i.e. the number of bytes to be read from @p src buffer by this
+ * function) in the compressed buffer is ok with you.
  *
  * @return The number of bytes decompressed. If an error occurs,
  * e.g. the compressed data is corrupted, @p destsize is not large enough
@@ -990,12 +1003,12 @@ BLOSC_EXPORT blosc2_frame* blosc2_frame_from_file(const char *fname);
  * @brief Create a super-chunk from a frame.
  *
  * @param frame The frame from which the super-chunk will be created.
- * @param sparse If true, a new sparse, in-memory super-chunk is created.
+ * @param copy If true, a new, sparse in-memory super-chunk is created.
  * Else, a frame-backed one is created (i.e. no copies are made)
  *
  * @return The super-chunk corresponding to the frame.
  */
-BLOSC_EXPORT blosc2_schunk* blosc2_schunk_from_frame(blosc2_frame* frame, bool sparse);
+BLOSC_EXPORT blosc2_schunk* blosc2_schunk_from_frame(blosc2_frame* frame, bool copy);
 
 /**
  * @brief Find whether the frame has a metalayer or not.
