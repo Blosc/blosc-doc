@@ -33,9 +33,9 @@ extern "C" {
 #define BLOSC_VERSION_MINOR    0    /* for minor interface/format changes  */
 #define BLOSC_VERSION_RELEASE  0    /* for tweaks, bug-fixes, or development */
 
-#define BLOSC_VERSION_STRING   "2.0.0-beta.1"  /* string version.  Sync with above! */
+#define BLOSC_VERSION_STRING   "2.0.0-beta.2"  /* string version.  Sync with above! */
 #define BLOSC_VERSION_REVISION "$Rev$"   /* revision version */
-#define BLOSC_VERSION_DATE     "$Date:: 2019-08-09 #$"    /* date version */
+#define BLOSC_VERSION_DATE     "$Date:: 2019-08-30 #$"    /* date version */
 
 
 /* The VERSION_FORMAT symbols below should be just 1-byte long */
@@ -44,13 +44,28 @@ enum {
      1 -> Blosc pre-1.0
      2 -> Blosc 1.x series
      3 -> Blosc 2-alpha.x series
-     4 -> Blosc 2.x series
+     4 -> Blosc 2.x beta.1 series
      */
-  BLOSC_PRE1_VERSION_FORMAT = 1,
+  BLOSC_VERSION_FORMAT_PRE1 = 1,
   BLOSC1_VERSION_FORMAT = 2,
-  BLOSC2_ALPHA_VERSION_FORMAT = 3,
-  BLOSC2_BETA_VERSION_FORMAT = 4,
-  BLOSC_VERSION_FORMAT_LATEST = BLOSC2_BETA_VERSION_FORMAT,
+  BLOSC2_VERSION_FORMAT_ALPHA = 3,
+  BLOSC2_VERSION_FORMAT_BETA1 = 4,
+  BLOSC_VERSION_FORMAT = BLOSC2_VERSION_FORMAT_BETA1,
+};
+
+
+/* The FRAME_FORMAT_VERSION symbols below should be just 4-bit long */
+enum {
+  /* Blosc format version
+   *  4 -> First version (introduced in beta.1)
+   *  1 -> Second version (introduced in beta.2)
+   *
+   *  *Important note*: version 4 should be avoided because it was used
+   *  for beta.1 and before, and it won't be supported anymore.
+   */
+  BLOSC2_VERSION_FRAME_FORMAT_BETA1 = 4,  // for beta.1 and before
+  BLOSC2_VERSION_FRAME_FORMAT_BETA2 = 1,  // for beta.2 and after
+  BLOSC2_VERSION_FRAME_FORMAT = BLOSC2_VERSION_FRAME_FORMAT_BETA2,
 };
 
 enum {
@@ -563,9 +578,7 @@ BLOSC_EXPORT char* blosc_cbuffer_complib(const void* cbuffer);
 
 
 /*********************************************************************
-
   Structures and functions related with contexts.
-
 *********************************************************************/
 
 typedef struct blosc2_context_s blosc2_context;   /* opaque type */
@@ -631,7 +644,7 @@ typedef struct {
 /**
  * @brief Default struct for compression params meant for user initialization.
  */
-static const blosc2_cparams BLOSC_CPARAMS_DEFAULTS = {
+static const blosc2_cparams BLOSC2_CPARAMS_DEFAULTS = {
         BLOSC_BLOSCLZ, 5, 0, 8, 1, 0, NULL,
         {0, 0, 0, 0, 0, BLOSC_SHUFFLE}, {0, 0, 0, 0, 0, 0},
         NULL, NULL };
@@ -652,7 +665,7 @@ typedef struct {
 /**
  * @brief Default struct for decompression params meant for user initialization.
  */
-static const blosc2_dparams BLOSC_DPARAMS_DEFAULTS = { 1, NULL };
+static const blosc2_dparams BLOSC2_DPARAMS_DEFAULTS = {1, NULL };
 
 /**
  * @brief Create a context for @a *_ctx() compression functions.
@@ -750,48 +763,40 @@ BLOSC_EXPORT int blosc2_getitem_ctx(blosc2_context* context, const void* src,
 
 
 /*********************************************************************
-
   Super-chunk related structures and functions.
-
 *********************************************************************/
 
 #define BLOSC2_MAX_METALAYERS 16
 #define BLOSC2_METALAYER_NAME_MAXLEN 31
-
-struct blosc2_schunk;
-
-/**
- * @brief This struct is meant to store metadata information inside
- * a #blosc2_frame, allowing to specify, for example, how to interpret
- * the contents compressed in the frame.
- */
-typedef struct blosc2_frame_metalayer {
-    char* name;  //!< The metalayer identifier for Blosc client (e.g. caterva).
-    uint8_t* content;  //!< The serialized (msgpack preferably) content of the metalayer.
-    int32_t content_len; //!< The lenght in bytes of the content.
-} blosc2_frame_metalayer;
 
 typedef struct {
   char* fname;     //!< The name of the file; if NULL, this is in-memory
   uint8_t* sdata;  //!< The in-memory serialized data
   int64_t len;     //!< The current length of the frame in (compressed) bytes
   int64_t maxlen;  //!< The maximum length of the frame; if 0, there is no maximum
-  struct blosc2_frame_metalayer *metalayers[BLOSC2_MAX_METALAYERS]; //!< The array of metalayers.
-  int16_t nmetalayers;  //!< The number of metalayers in the frame
+  uint32_t trailer_len;  //!< The current length of the trailer in (compressed) bytes
 } blosc2_frame;
+
+/**
+ * @brief This struct is meant to store metadata information inside
+ * a #blosc2_schunk, allowing to specify, for example, how to interpret
+ * the contents included in the schunk.
+ */
+typedef struct blosc2_metalayer {
+  char* name;          //!< The metalayer identifier for Blosc client (e.g. Caterva).
+  uint8_t* content;    //!< The serialized (msgpack preferably) content of the metalayer.
+  int32_t content_len; //!< The length in bytes of the content.
+} blosc2_metalayer;
 
 /**
  * @brief This struct is the standard container for Blosc 2 compressed data.
  *
- * This struct is essentially a container for Blosc 1 chunks of compressed data,
- * and it allows to overcome the 32-bit limitation in Blosc 1. It can be used
- * together with a frame to store the compressed chunks contiguously.
+ * This is essentially a container for Blosc 1 chunks of compressed data,
+ * and it allows to overcome the 32-bit limitation in Blosc 1. Optionally,
+ * a #blosc2_frame can be attached so as to store the compressed chunks contiguously.
  */
 typedef struct blosc2_schunk {
   uint8_t version;
-  uint8_t flags1;
-  uint8_t flags2;
-  uint8_t flags3;
   uint8_t compcode;
   //!< The default compressor. Each chunk can override this.
   uint8_t clevel;
@@ -812,10 +817,6 @@ typedef struct blosc2_schunk {
   //!< The data size + metadata size + header size (uncompressed).
   int64_t cbytes;
   //!< The data size + metadata size + header size (compressed).
-  uint8_t* metadata_chunk;
-  //!< Pointer to schunk metadata.
-  uint8_t* userdata_chunk;
-  //!< Pointer to user-defined data.
   uint8_t** data;
   //!< Pointer to chunk data pointers.
   blosc2_frame* frame;
@@ -826,6 +827,14 @@ typedef struct blosc2_schunk {
   //!< Context for compression
   blosc2_context* dctx;
   //!< Context for decompression.
+  struct blosc2_metalayer *metalayers[BLOSC2_MAX_METALAYERS];
+  //!< The array of metalayers.
+  int16_t nmetalayers;
+  //!< The number of metalayers in the frame
+  uint8_t* usermeta;
+  //<! The user-defined metadata.
+  int32_t usermeta_len;
+  //<! The (compressed) length of the user-defined metadata.
   uint8_t* reserved;
   //!< Reserved for the future.
 } blosc2_schunk;
@@ -942,9 +951,103 @@ BLOSC_EXPORT int blosc2_schunk_get_dparams(blosc2_schunk *schunk, blosc2_dparams
 
 
 /*********************************************************************
+  Functions related with metalayers.
+*********************************************************************/
 
+/**
+ * @brief Find whether the schunk has a metalayer or not.
+ *
+ * @param schunk The super-chunk from which the metalayer will be checked.
+ * @param name The name of the metalayer to be checked.
+ *
+ * @return If successful, return the index of the metalayer. Else, return a negative value.
+ */
+BLOSC_EXPORT int blosc2_has_metalayer(blosc2_schunk *schunk, char *name);
+
+/**
+ * @brief Add content into a new metalayer.
+ *
+ * @param schunk The super-chunk to which the metalayer should be added.
+ * @param name The name of the metalayer.
+ * @param content The content of the metalayer.
+ * @param content_len The length of the content.
+ *
+ * @return If successful, the index of the new metalayer. Else, return a negative value.
+ */
+BLOSC_EXPORT int blosc2_add_metalayer(blosc2_schunk *schunk, char *name, uint8_t *content,
+                                      uint32_t content_len);
+
+/**
+ * @brief Update the content of an existing metalayer.
+ *
+ * @param schunk The frame containing the metalayer.
+ * @param name The name of the metalayer to be updated.
+ * @param content The new content of the metalayer.
+ * @param content_len The length of the content.
+ *
+ * @note Contrarily to #blosc2_add_metalayer the updates to metalayers
+ * are automatically serialized into a possible attached frame.
+ *
+ * @return If successful, the index of the metalayer. Else, return a negative value.
+ */
+BLOSC_EXPORT int blosc2_update_metalayer(blosc2_schunk *schunk, char *name, uint8_t *content,
+                                         uint32_t content_len);
+
+/**
+ * @brief Get the content out of a metalayer.
+ *
+ * @param schunk The frame containing the metalayer.
+ * @param name The name of the metalayer.
+ * @param content The pointer where the content will be put.
+ * @param content_len The length of the content.
+ *
+ * @warning The @p **content receives a malloc'ed copy of the content.
+ * The user is responsible of freeing it.
+ *
+ * @return If successful, the index of the new metalayer. Else, return a negative value.
+ */
+BLOSC_EXPORT int blosc2_get_metalayer(blosc2_schunk *schunk, char *name, uint8_t **content,
+                                      uint32_t *content_len);
+
+
+/*********************************************************************
+  Usermeta functions.
+*********************************************************************/
+
+/**
+ * @brief Update content into a usermeta chunk.
+ *
+ * If the @p schunk has an attached frame, the later will be updated accordingly too.
+ *
+ * @param schunk The super-chunk to which one should add the usermeta chunk.
+ * @param content The content of the usermeta chunk.
+ * @param content_len The length of the content.
+ * @param cparams The parameters for compressing the usermeta chunk.
+ *
+ * @note The previous content, if any, will be overwritten by the new content.
+ * The user is responsible to keep the new content in sync with any previous content.
+ *
+ * @return If successful, return the number of compressed bytes that takes the content.
+ * Else, a negative value.
+ */
+BLOSC_EXPORT int blosc2_update_usermeta(blosc2_schunk *schunk, uint8_t *content,
+                                        int32_t content_len, blosc2_cparams cparams);
+
+/* @brief Retrieve the usermeta chunk in a decompressed form.
+ *
+ * @param schunk The super-chunk to which add the usermeta chunk.
+ * @param content The content of the usermeta chunk (output).
+ *
+ * @note The user is responsible to free the @p content buffer.
+ *
+ * @return If successful, return the size of the (decompressed) chunk.
+ * Else, a negative value.
+ */
+BLOSC_EXPORT int blosc2_get_usermeta(blosc2_schunk* schunk, uint8_t** content);
+
+
+/*********************************************************************
   Frame related structures and functions.
-
 *********************************************************************/
 
 /**
@@ -960,14 +1063,14 @@ BLOSC_EXPORT blosc2_frame* blosc2_new_frame(char* fname);
  * @brief Create a frame from a super-chunk.
  *
  * @param schunk The super-chunk from where the frame will be created.
- * @param frame The pointer where the frame will be returned
+ * @param frame The pointer for the frame that will be populated.
  *
  * If frame->fname is NULL, a frame is created in memory; else it is created
  * on disk.
  *
  * @return The size in bytes of the frame. If an error occurs it returns a negative value.
  */
-BLOSC_EXPORT int64_t blosc2_schunk_to_frame(blosc2_schunk *schunk, blosc2_frame *frame);
+BLOSC_EXPORT int64_t blosc2_schunk_to_frame(blosc2_schunk* schunk, blosc2_frame* frame);
 
 /**
  * @brief Free all memory from a frame.
@@ -981,12 +1084,13 @@ BLOSC_EXPORT int blosc2_free_frame(blosc2_frame *frame);
 /**
  * @brief Write an in-memory frame out to a file.
  *
- * The frame used must be an in-memory frame, frame->fname == NULL.
+ * The frame used must be an in-memory frame, i.e. frame->fname == NULL.
  *
  * @param frame The frame to be written into a file.
  * @param fname The name of the file.
  *
- * @return The size of the frame.
+ * @return The size of the frame.  If negative, an error happened (including
+ * that the original frame is not in-memory).
  */
 BLOSC_EXPORT int64_t blosc2_frame_to_file(blosc2_frame *frame, char *fname);
 
@@ -1010,57 +1114,6 @@ BLOSC_EXPORT blosc2_frame* blosc2_frame_from_file(const char *fname);
  */
 BLOSC_EXPORT blosc2_schunk* blosc2_schunk_from_frame(blosc2_frame* frame, bool copy);
 
-/**
- * @brief Find whether the frame has a metalayer or not.
- *
- * @param frame The frame from which the metalayer will be checked.
- * @param name The name of the metalayer to be checked.
- *
- * @return If successful, return the index of the metalayer. Else, return a negative value.
- */
-BLOSC_EXPORT int blosc2_frame_has_metalayer(blosc2_frame *frame, char *name);
-
-/**
- * @brief Add content into a new metalayer.
- *
- * @param frame The frame to which add the metalayer.
- * @param name The name of the metalayer.
- * @param content The content of the metalayer.
- * @param content_len The length of the content.
- *
- * @return If successful, the index of the new metalayer. Else, return a negative value.
- */
-BLOSC_EXPORT int blosc2_frame_add_metalayer(blosc2_frame *frame, char *name, uint8_t *content,
-                                            uint32_t content_len);
-
-/**
- * @brief Update the content of an existing metalayer.
- *
- * @param frame The frame containing the metalayer.
- * @param name The name of the metalayer to be updated.
- * @param content The new content of the metalayer.
- * @param content_len The length of the content.
- *
- * @return If successful, the index of the metalayer. Else, return a negative value.
- */
-BLOSC_EXPORT int blosc2_frame_update_metalayer(blosc2_frame *frame, char *name, uint8_t *content,
-                                               uint32_t content_len);
-
-/**
- * @brief Get the content out of a metalayer.
- *
- * @param frame The frame containing the metalayer.
- * @param name The name of the metalayer.
- * @param content The pointer where the content will be put.
- * @param content_len The length of the content.
- *
- * @warning The @p **content receives a malloc'ed copy of the content.
- * The user is responsible of freeing it.
- *
- * @return If successful, the index of the new metalayer. Else, return a negative value.
- */
-BLOSC_EXPORT int blosc2_frame_get_metalayer(blosc2_frame *frame, char *name, uint8_t **content,
-                                            uint32_t *content_len);
 
 /*********************************************************************
   Time measurement utilities.
@@ -1109,9 +1162,7 @@ BLOSC_EXPORT double blosc_elapsed_secs(blosc_timestamp_t start_time,
 
 
 /*********************************************************************
-
   Low-level functions follows.  Use them only if you are an expert!
-
 *********************************************************************/
 
 /**
