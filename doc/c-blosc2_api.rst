@@ -301,7 +301,7 @@ also be serialized to disk.
    :project: blosc2
 .. doxygenfunction:: blosc2_add_metalayer
    :project: blosc2
-.. doxygenfunction:: blosc2__update_metalayer
+.. doxygenfunction:: blosc2_update_metalayer
    :project: blosc2
 .. doxygenfunction:: blosc2_get_metalayer
    :project: blosc2
