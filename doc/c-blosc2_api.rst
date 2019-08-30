@@ -273,11 +273,6 @@ Frame API
 The Blosc 2 Frame struct is essentially a store for a super-chunk that
 can be contiguous in memory, or serialized to disk.
 
-**typedef blosc2_frame_metalayer**
-
-.. doxygenstruct:: blosc2_frame_metalayer
-   :project: blosc2
-   :members:
 .. doxygenstruct:: blosc2_frame
    :project: blosc2
    :members:
@@ -293,17 +288,32 @@ can be contiguous in memory, or serialized to disk.
    :project: blosc2
 
 Metalayer functions
--------------------
-Metalayers are meta-information that can be attached to frames.  They can
++++++++++++++++++++
+Metalayers are meta-information that can be attached to super-chunks.  They can
 also be serialized to disk.
 
-.. doxygenfunction:: blosc2_frame_has_metalayer
+**typedef blosc2_metalayer**
+
+.. doxygenstruct:: blosc2_metalayer
    :project: blosc2
-.. doxygenfunction:: blosc2_frame_add_metalayer
+   :members:
+.. doxygenfunction:: blosc2_has_metalayer
    :project: blosc2
-.. doxygenfunction:: blosc2_frame_update_metalayer
+.. doxygenfunction:: blosc2_add_metalayer
    :project: blosc2
-.. doxygenfunction:: blosc2_frame_get_metalayer
+.. doxygenfunction:: blosc2__update_metalayer
+   :project: blosc2
+.. doxygenfunction:: blosc2_get_metalayer
+   :project: blosc2
+
+Usermeta functions
+++++++++++++++++++
+Usermeta is a variable-sized chunk that is attached to a super-chunk and can also
+be serialized to disk.
+
+.. doxygenfunction:: blosc2_update_usermeta
+   :project: blosc2
+.. doxygenfunction:: blosc2_get_usermeta
    :project: blosc2
 
 Timing functions
