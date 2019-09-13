@@ -33,9 +33,9 @@ extern "C" {
 #define BLOSC_VERSION_MINOR    0    /* for minor interface/format changes  */
 #define BLOSC_VERSION_RELEASE  0    /* for tweaks, bug-fixes, or development */
 
-#define BLOSC_VERSION_STRING   "2.0.0-beta.3"  /* string version.  Sync with above! */
+#define BLOSC_VERSION_STRING   "2.0.0-beta.4"  /* string version.  Sync with above! */
 #define BLOSC_VERSION_REVISION "$Rev$"   /* revision version */
-#define BLOSC_VERSION_DATE     "$Date:: 2019-09-02 #$"    /* date version */
+#define BLOSC_VERSION_DATE     "$Date:: 2019-09-13 #$"    /* date version */
 
 
 /* The VERSION_FORMAT symbols below should be just 1-byte long */
@@ -123,7 +123,8 @@ enum {
  * @brief Codes for new internal flags in Blosc2
  */
 enum {
-  BLOSC2_USEDICT = 0x1,            //!< use dictionaries with codec
+  BLOSC2_USEDICT = 0x1,          //!< use dictionaries with codec
+  BLOSC2_BIGENDIAN = 0x2,        //!< data is in big-endian ordering
 };
 
 /**
@@ -379,6 +380,23 @@ BLOSC_EXPORT int blosc_getitem(const void* src, int start, int nitems, void* des
 
 
 /**
+  Pointer to a callback function that executes `dojob(jobdata + i*jobdata_elsize)` for `i = 0 to numjobs-1`,
+  possibly in parallel threads (but not returning until all `dojob` calls have returned).   This allows the
+  caller to provide a custom threading backend as an alternative to the default Blosc-managed threads.
+  `callback_data` is passed through from `blosc_set_threads_callback`.
+ */
+typedef void (*blosc_threads_callback)(void *callback_data, void (*dojob)(void *), int numjobs, size_t jobdata_elsize, void *jobdata);
+
+/**
+  Set the threading backend for parallel compression/decompression to use `callback` to execute work
+  instead of using the Blosc-managed threads.   This function is *not* thread-safe and should be called
+  before any other Blosc function: it affects all Blosc contexts.  Passing `NULL` uses the default
+  Blosc threading backend.  The `callback_data` argument is passed through to the callback.
+ */
+BLOSC_EXPORT void blosc_set_threads_callback(blosc_threads_callback callback, void *callback_data);
+
+
+/**
  * @brief Returns the current number of threads that are used for
  * compression/decompression.
  */
@@ -403,7 +421,7 @@ BLOSC_EXPORT int blosc_set_nthreads(int nthreads);
  *
  * @return The string identifying the compressor being used.
  */
-BLOSC_EXPORT char* blosc_get_compressor(void);
+BLOSC_EXPORT const char* blosc_get_compressor(void);
 
 
 /**
@@ -440,7 +458,7 @@ BLOSC_EXPORT void blosc_set_delta(int dodelta);
  * @return The compressor code. If the compressor code is not recognized,
  * or there is not support for it in this build, -1 is returned.
  */
-BLOSC_EXPORT int blosc_compcode_to_compname(int compcode, char** compname);
+BLOSC_EXPORT int blosc_compcode_to_compname(int compcode, const char** compname);
 
 
 /**
@@ -465,7 +483,7 @@ BLOSC_EXPORT int blosc_compname_to_compcode(const char* compname);
  *
  * This function should always succeed.
  */
-BLOSC_EXPORT char* blosc_list_compressors(void);
+BLOSC_EXPORT const char* blosc_list_compressors(void);
 
 
 /**
@@ -474,7 +492,7 @@ BLOSC_EXPORT char* blosc_list_compressors(void);
  * @return The string with the current Blosc version.
  * Useful for dynamic libraries.
  */
-BLOSC_EXPORT char* blosc_get_version_string(void);
+BLOSC_EXPORT const char* blosc_get_version_string(void);
 
 
 /**
@@ -492,7 +510,7 @@ BLOSC_EXPORT char* blosc_get_version_string(void);
  * @return The code for the compression library (>=0). If it is not supported,
  * this function returns -1.
  */
-BLOSC_EXPORT int blosc_get_complib_info(char* compname, char** complib,
+BLOSC_EXPORT int blosc_get_complib_info(const char* compname, char** complib,
                                         char** version);
 
 
@@ -574,7 +592,7 @@ BLOSC_EXPORT void blosc_cbuffer_versions(const void* cbuffer, int* version,
  *
  * This function should always succeed.
  */
-BLOSC_EXPORT char* blosc_cbuffer_complib(const void* cbuffer);
+BLOSC_EXPORT const char* blosc_cbuffer_complib(const void* cbuffer);
 
 
 /*********************************************************************
@@ -770,11 +788,12 @@ BLOSC_EXPORT int blosc2_getitem_ctx(blosc2_context* context, const void* src,
 #define BLOSC2_METALAYER_NAME_MAXLEN 31
 
 typedef struct {
-  char* fname;     //!< The name of the file; if NULL, this is in-memory
-  uint8_t* sdata;  //!< The in-memory serialized data
-  int64_t len;     //!< The current length of the frame in (compressed) bytes
-  int64_t maxlen;  //!< The maximum length of the frame; if 0, there is no maximum
-  uint32_t trailer_len;  //!< The current length of the trailer in (compressed) bytes
+  char* fname;             //!< The name of the file; if NULL, this is in-memory
+  uint8_t* sdata;          //!< The in-memory serialized data
+  uint8_t* coffsets;       //!< Pointers to the (compressed, on-disk) chunk offsets
+  int64_t len;             //!< The current length of the frame in (compressed) bytes
+  int64_t maxlen;          //!< The maximum length of the frame; if 0, there is no maximum
+  uint32_t trailer_len;    //!< The current length of the trailer in (compressed) bytes
 } blosc2_frame;
 
 /**
@@ -818,7 +837,9 @@ typedef struct blosc2_schunk {
   int64_t cbytes;
   //!< The data size + metadata size + header size (compressed).
   uint8_t** data;
-  //!< Pointer to chunk data pointers.
+  //!< Pointer to chunk data pointers buffer.
+  size_t data_len;
+  //!< Length of the chunk data pointers buffer.
   blosc2_frame* frame;
   //!< Pointer to frame used as store for chunks.
   //!<uint8_t* ctx;
@@ -835,8 +856,6 @@ typedef struct blosc2_schunk {
   //<! The user-defined metadata.
   int32_t usermeta_len;
   //<! The (compressed) length of the user-defined metadata.
-  uint8_t* reserved;
-  //!< Reserved for the future.
 } blosc2_schunk;
 
 /**
@@ -962,7 +981,7 @@ BLOSC_EXPORT int blosc2_schunk_get_dparams(blosc2_schunk *schunk, blosc2_dparams
  *
  * @return If successful, return the index of the metalayer. Else, return a negative value.
  */
-BLOSC_EXPORT int blosc2_has_metalayer(blosc2_schunk *schunk, char *name);
+BLOSC_EXPORT int blosc2_has_metalayer(blosc2_schunk *schunk, const char *name);
 
 /**
  * @brief Add content into a new metalayer.
@@ -974,7 +993,7 @@ BLOSC_EXPORT int blosc2_has_metalayer(blosc2_schunk *schunk, char *name);
  *
  * @return If successful, the index of the new metalayer. Else, return a negative value.
  */
-BLOSC_EXPORT int blosc2_add_metalayer(blosc2_schunk *schunk, char *name, uint8_t *content,
+BLOSC_EXPORT int blosc2_add_metalayer(blosc2_schunk *schunk, const char *name, uint8_t *content,
                                       uint32_t content_len);
 
 /**
@@ -990,7 +1009,7 @@ BLOSC_EXPORT int blosc2_add_metalayer(blosc2_schunk *schunk, char *name, uint8_t
  *
  * @return If successful, the index of the metalayer. Else, return a negative value.
  */
-BLOSC_EXPORT int blosc2_update_metalayer(blosc2_schunk *schunk, char *name, uint8_t *content,
+BLOSC_EXPORT int blosc2_update_metalayer(blosc2_schunk *schunk, const char *name, uint8_t *content,
                                          uint32_t content_len);
 
 /**
@@ -1006,7 +1025,7 @@ BLOSC_EXPORT int blosc2_update_metalayer(blosc2_schunk *schunk, char *name, uint
  *
  * @return If successful, the index of the new metalayer. Else, return a negative value.
  */
-BLOSC_EXPORT int blosc2_get_metalayer(blosc2_schunk *schunk, char *name, uint8_t **content,
+BLOSC_EXPORT int blosc2_get_metalayer(blosc2_schunk *schunk, const char *name, uint8_t **content,
                                       uint32_t *content_len);
 
 
@@ -1057,7 +1076,7 @@ BLOSC_EXPORT int blosc2_get_usermeta(blosc2_schunk* schunk, uint8_t** content);
  *
  * @return The new frame.
  */
-BLOSC_EXPORT blosc2_frame* blosc2_new_frame(char* fname);
+BLOSC_EXPORT blosc2_frame* blosc2_new_frame(const char* fname);
 
 /**
  * @brief Create a frame from a super-chunk.
@@ -1092,7 +1111,7 @@ BLOSC_EXPORT int blosc2_free_frame(blosc2_frame *frame);
  * @return The size of the frame.  If negative, an error happened (including
  * that the original frame is not in-memory).
  */
-BLOSC_EXPORT int64_t blosc2_frame_to_file(blosc2_frame *frame, char *fname);
+BLOSC_EXPORT int64_t blosc2_frame_to_file(blosc2_frame *frame, const char *fname);
 
 /**
  * @brief Initialize a frame out of a file.
