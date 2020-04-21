@@ -33,9 +33,9 @@ extern "C" {
 #define BLOSC_VERSION_MINOR    0    /* for minor interface/format changes  */
 #define BLOSC_VERSION_RELEASE  0    /* for tweaks, bug-fixes, or development */
 
-#define BLOSC_VERSION_STRING   "2.0.0-beta.4"  /* string version.  Sync with above! */
+#define BLOSC_VERSION_STRING   "2.0.0.beta.5"  /* string version.  Sync with above! */
 #define BLOSC_VERSION_REVISION "$Rev$"   /* revision version */
-#define BLOSC_VERSION_DATE     "$Date:: 2019-09-13 #$"    /* date version */
+#define BLOSC_VERSION_DATE     "$Date:: 2020-04-21 #$"    /* date version */
 
 
 /* The VERSION_FORMAT symbols below should be just 1-byte long */
@@ -601,24 +601,20 @@ BLOSC_EXPORT const char* blosc_cbuffer_complib(const void* cbuffer);
 
 typedef struct blosc2_context_s blosc2_context;   /* opaque type */
 
-#define BLOSC2_PREFILTER_INPUTS_MAX (128)
-
 /**
  * @brief The parameters for a prefilter function.
  *
- * There can be many inputs and a single output.
- * The number of elements of each input and the output should be the same.
- * Strictly, the user only needs to fill the `ninputs` , `inputs` and `input_typesizes`.
- * The other fields will be filled by the library itself.
  */
 typedef struct {
-  int ninputs;  // number of data inputs
-  uint8_t* inputs[BLOSC2_PREFILTER_INPUTS_MAX];  // the data inputs
-  int32_t input_typesizes[BLOSC2_PREFILTER_INPUTS_MAX];  // the typesizes for data inputs
   void *user_data;  // user-provided info (optional)
-  uint8_t *out;  // automatically filled
-  int32_t out_size;  // automatically filled
-  int32_t out_typesize;  // automatically filled
+  uint8_t *out;  // the output buffer
+  int32_t out_size;  // the output size (in bytes)
+  int32_t out_typesize;  // the output typesize
+  int32_t out_offset; // offset to reach the start of the output buffer
+  int32_t tid;  // thread id
+  uint8_t *ttmp;  // a temporary that is able to hold several blocks for the output and is private for each thread
+  int32_t ttmp_nbytes;  // the size of the temporary in bytes
+  blosc2_context *ctx;  // the decompression context
 } blosc2_prefilter_params;
 
 /**
@@ -683,7 +679,7 @@ typedef struct {
 /**
  * @brief Default struct for decompression params meant for user initialization.
  */
-static const blosc2_dparams BLOSC2_DPARAMS_DEFAULTS = {1, NULL };
+static const blosc2_dparams BLOSC2_DPARAMS_DEFAULTS = {1, NULL};
 
 /**
  * @brief Create a context for @a *_ctx() compression functions.
@@ -712,6 +708,27 @@ BLOSC_EXPORT blosc2_context* blosc2_create_dctx(blosc2_dparams dparams);
  * both compression and decompression.
  */
 BLOSC_EXPORT void blosc2_free_ctx(blosc2_context* context);
+
+/**
+ * @brief Set a maskout so as to avoid decompressing specified blocks.
+ *
+ * @param ctx The decompression context to update.
+ *
+ * @param maskout The boolean mask for the blocks where decompression
+ * is to be avoided.
+ *
+ * @remark The maskout is valid for contexts *only* meant for decompressing
+ * a chunk via #blosc2_decompress_ctx.  Once a call to #blosc2_decompress_ctx
+ * is done, this mask is reset so that next call to #blosc2_decompress_ctx
+ * will decompress the whole chunk.
+ *
+ * @param nblocks The number of blocks in maskout above.
+ *
+ * @return If success, a 0 values is returned.  An error is signaled with a
+ * negative int.
+ *
+ */
+BLOSC_EXPORT int blosc2_set_maskout(blosc2_context *ctx, bool *maskout, int nblocks);
 
 /**
  * @brief Context interface to Blosc compression. This does not require a call
@@ -755,14 +772,19 @@ BLOSC_EXPORT int blosc2_compress_ctx(
  * buffer more than what is specified in @p destsize.
  *
  * @remark In case you want to keep under control the number of bytes read from
- * source, you can call #blosc_cbuffer_sizes first to check whether the
- * @p nbytes (i.e. the number of bytes to be read from @p src buffer by this
- * function) in the compressed buffer is ok with you.
+ * source, you can call #blosc_cbuffer_sizes first to check the @p nbytes
+ * (i.e. the number of bytes to be read from @p src buffer by this function)
+ * in the compressed buffer.
  *
- * @return The number of bytes decompressed. If an error occurs,
- * e.g. the compressed data is corrupted, @p destsize is not large enough
- * or context is not meant for decompression, then 0 (zero) or a
- * negative value will be returned instead.
+ * @remark If #blosc2_set_maskout is called prior to this function, its
+ * @p block_maskout parameter will be honored for just *one single* shot;
+ * i.e. the maskout in context will be automatically reset to NULL, so
+ * mask will be used next time (unless #blosc2_set_maskout is called again).
+ *
+ * @return The number of bytes decompressed (i.e. the maskout blocks are not
+ * counted). If an error occurs, e.g. the compressed data is corrupted,
+ * @p destsize is not large enough or context is not meant for decompression,
+ * then 0 (zero) or a negative value will be returned instead.
  */
 BLOSC_EXPORT int blosc2_decompress_ctx(blosc2_context* context, const void* src,
                                        void* dest, size_t destsize);
@@ -1121,6 +1143,17 @@ BLOSC_EXPORT int64_t blosc2_frame_to_file(blosc2_frame *frame, const char *fname
  * @return The frame created from the file.
  */
 BLOSC_EXPORT blosc2_frame* blosc2_frame_from_file(const char *fname);
+
+/**
+ * @brief Initialize a frame out of a serialized frame.
+ *
+ * @param buffer The buffer for the serialized frame.
+ * @param len The length of buffer for the serialized frame.
+ * @param copy Whether the serialized frame should be copied internally or not.
+ *
+ * @return The frame created from the serialized frame.
+ */
+BLOSC_EXPORT blosc2_frame* blosc2_frame_from_sframe(uint8_t *sframe, int64_t len, bool copy);
 
 /**
  * @brief Create a super-chunk from a frame.
