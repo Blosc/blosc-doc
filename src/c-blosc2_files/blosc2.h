@@ -33,7 +33,7 @@ extern "C" {
 #define BLOSC_VERSION_MINOR    0    /* for minor interface/format changes  */
 #define BLOSC_VERSION_RELEASE  0    /* for tweaks, bug-fixes, or development */
 
-#define BLOSC_VERSION_STRING   "2.0.0.beta.5"  /* string version.  Sync with above! */
+#define BLOSC_VERSION_STRING   "2.0.0.beta.6.dev"  /* string version.  Sync with above! */
 #define BLOSC_VERSION_REVISION "$Rev$"   /* revision version */
 #define BLOSC_VERSION_DATE     "$Date:: 2020-04-21 #$"    /* date version */
 
@@ -779,7 +779,7 @@ BLOSC_EXPORT int blosc2_compress_ctx(
  * @remark If #blosc2_set_maskout is called prior to this function, its
  * @p block_maskout parameter will be honored for just *one single* shot;
  * i.e. the maskout in context will be automatically reset to NULL, so
- * mask will be used next time (unless #blosc2_set_maskout is called again).
+ * mask won't be used next time (unless #blosc2_set_maskout is called again).
  *
  * @return The number of bytes decompressed (i.e. the maskout blocks are not
  * counted). If an error occurs, e.g. the compressed data is corrupted,

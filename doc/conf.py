@@ -26,14 +26,14 @@ if read_the_docs_build:
 
 # -- Project information -----------------------------------------------------
 
-project = 'Blosc 2'
+project = 'Blosc2'
 copyright = '2019- The Blosc Development Team'
-author = 'Francesc Alted, Alberto Sabater'
+author = 'The Blosc Development Team'
 
 # The short X.Y version
 version = '2.0'
 # The full version, including alpha/beta/rc tags
-release = '2.0.0-beta1'
+release = '2.0.0.beta.5'
 
 
 # -- General configuration ---------------------------------------------------
