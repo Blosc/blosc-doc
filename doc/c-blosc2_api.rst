@@ -239,6 +239,8 @@ using the global lock.
    :project: blosc2
 .. doxygenfunction:: blosc2_decompress_ctx
    :project: blosc2
+.. doxygenfunction:: blosc2_set_maskout
+   :project: blosc2
 .. doxygenfunction:: blosc2_getitem_ctx
    :project: blosc2
 
